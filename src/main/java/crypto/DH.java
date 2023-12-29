@@ -1,5 +1,6 @@
 package crypto;
 
+import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.KeyFactory;
 import java.security.KeyPair;
@@ -16,29 +17,40 @@ import javax.crypto.interfaces.DHPublicKey;
 import javax.crypto.spec.DHParameterSpec;
 
 public class DH {
-  private static final Logger logger = Logger.getLogger(DH.class.getName());
+  private final Logger logger = Logger.getLogger(DH.class.getName());
+  private static final DH instance = new DH(); // initialized last for its' usage of above static variables
 
-  private static String dhAlgorithm = "DH";
+  protected String keyPairGeneratorAlgorithm;
+  protected String keyAgreementAlgorithm;
+  protected String keyFactoryAlgorithm;
 
-  public static enum KEY_SIZE {
-    DH_KEY_SIZE_1024(1024),
-    DH_KEY_SIZE_2048(2048);
-
-    private int size;
-
-    KEY_SIZE(int size) {
-      this.size = size;
-    }
-
-    public int getSize() {
-      return size;
-    }
+  protected String getKeyPairGeneratorAlgorithm() {
+    return "DH";
   }
 
-  public static KeyPair dhGenerateKeyPair(KEY_SIZE keySize) {
+  protected String getKeyAgreementAlgorithm() {
+    return "DH";
+  }
+  
+  protected String getKeyFactoryAlgorithm() {
+    return "DH";
+  }
+
+  protected DH() {
+    keyPairGeneratorAlgorithm = getKeyPairGeneratorAlgorithm();
+    keyAgreementAlgorithm = getKeyAgreementAlgorithm();
+    keyFactoryAlgorithm = getKeyFactoryAlgorithm();
+  }
+
+  public static DH getInstance() {
+    return instance;
+  }
+
+  public KeyPair generateKeyPair(int keySize) {
     try {
-      KeyPairGenerator keyPair = KeyPairGenerator.getInstance(dhAlgorithm);
-      keyPair.initialize(keySize.getSize());
+      KeyPairGenerator keyPair = KeyPairGenerator.getInstance(
+          keyPairGeneratorAlgorithm);
+      keyPair.initialize(keySize);
       return keyPair.generateKeyPair();
     } catch (NoSuchAlgorithmException e) {
       handleErrors(e);
@@ -46,24 +58,26 @@ public class DH {
     return null;
   }
 
-  public static KeyPair dhGenerateKeyPair(PublicKey peerPublicKey) {
+  public KeyPair generateKeyPair(PublicKey peerPublicKey) {
     try {
       DHParameterSpec peerDhParameterSpec = ((DHPublicKey)peerPublicKey)
           .getParams();
       KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance(
-          dhAlgorithm);
+          keyPairGeneratorAlgorithm);
       keyPairGenerator.initialize(peerDhParameterSpec);
       KeyPair keyPair = keyPairGenerator.generateKeyPair();
       return keyPair;
-    } catch (Exception e) {
+    } catch (ClassCastException | NoSuchAlgorithmException |
+        InvalidAlgorithmParameterException e) {
       handleErrors(e);
     }
     return null;
   }
 
-  public static KeyAgreement dhGetKeyAgreement(KeyPair keyPair) {
+  public KeyAgreement getKeyAgreement(KeyPair keyPair) {
     try {
-       KeyAgreement keyAgreement = KeyAgreement.getInstance(dhAlgorithm);
+       KeyAgreement keyAgreement = KeyAgreement.getInstance(
+           keyAgreementAlgorithm);
        keyAgreement.init(keyPair.getPrivate());
        return keyAgreement;
     } catch (NoSuchAlgorithmException | InvalidKeyException e) {
@@ -72,9 +86,9 @@ public class DH {
     return null;
   }
 
-  public static PublicKey getPeerPublicKey(byte[] peerData) {
+  public PublicKey getPeerPublicKey(byte[] peerData) {
     try {
-      KeyFactory keyFactory = KeyFactory.getInstance(dhAlgorithm);
+      KeyFactory keyFactory = KeyFactory.getInstance(keyFactoryAlgorithm);
       X509EncodedKeySpec peerX509EncodedKeySpec = new X509EncodedKeySpec(
           peerData);
       PublicKey peerPublicKey = keyFactory.generatePublic(
@@ -86,7 +100,7 @@ public class DH {
     return null;
   }
 
-  public static boolean dhDoPhase(KeyAgreement keyAgreement,
+  public boolean doPhase(KeyAgreement keyAgreement,
       PublicKey peerPublicKey) {
     try {
       keyAgreement.doPhase(peerPublicKey, true);
@@ -97,7 +111,7 @@ public class DH {
     return false;
   }
 
-  private static void handleErrors(Exception e) {
+  protected void handleErrors(Exception e) {
     logger.log(Level.SEVERE, e.getMessage(), e);
   }
 }

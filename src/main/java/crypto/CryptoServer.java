@@ -8,7 +8,6 @@ import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 
 import java.io.IOException;
-import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.PublicKey;
 import java.util.concurrent.TimeUnit;
@@ -49,7 +48,8 @@ public class CryptoServer {
       @Override
       public void run() {
         // Use stderr here since the logger may have been reset by its JVM shutdown hook.
-        System.err.println("*** shutting down gRPC server since JVM is shutting down");
+        System.err.println(
+            "*** shutting down gRPC server since JVM is shutting down");
         try {
           CryptoServer.this.stop();
         } catch (InterruptedException e) {
@@ -115,17 +115,29 @@ public class CryptoServer {
     
     private HandshakeData getServerHandshakeData(CipherSuite clientCipherSuite,
         ByteString clientData) {
-      byte[] serverPublicKeyBuf = dh(clientData.toByteArray());
+      byte[] serverPublicKeyBuf = null;
+      switch (clientCipherSuite) {
+        case DH:
+          serverPublicKeyBuf = dh(DH.getInstance(), clientData.toByteArray());
+          break;
+        case ECDH:
+          serverPublicKeyBuf = dh(ECDH.getInstance(), clientData.toByteArray());
+          break;
+      }
+      if (serverPublicKeyBuf == null) {
+        return null;
+      }
       return HandshakeData.newBuilder().setCipherSuite(clientCipherSuite)
           .setData(ByteString.copyFrom(serverPublicKeyBuf)).build();
     }
 
-    private byte[] dh(byte[] peerPublicKeyBuf) {
-      PublicKey peerPublicKey = DH.getPeerPublicKey(peerPublicKeyBuf);
+    private byte[] dh(DH algoInst, byte[] peerPublicKeyBuf) {
+      PublicKey peerPublicKey = algoInst.getPeerPublicKey(
+          peerPublicKeyBuf);
       if (peerPublicKey == null) {
         return null;
       }
-      KeyPair keyPair = DH.dhGenerateKeyPair(peerPublicKey);
+      KeyPair keyPair = algoInst.generateKeyPair(peerPublicKey);
       if (keyPair == null) {
         return null;
       }
@@ -134,11 +146,11 @@ public class CryptoServer {
       logger.log(Level.INFO, "Server's public key: " + Util.toHexString(
           publicKeyBuf));
 
-      KeyAgreement keyAgreement = DH.dhGetKeyAgreement(keyPair);
+      KeyAgreement keyAgreement = algoInst.getKeyAgreement(keyPair);
       if (keyAgreement == null) {
         return null;
       }
-      boolean doPhaseOk = DH.dhDoPhase(keyAgreement, peerPublicKey);
+      boolean doPhaseOk = algoInst.doPhase(keyAgreement, peerPublicKey);
       if (!doPhaseOk) {
         return null;
       }
