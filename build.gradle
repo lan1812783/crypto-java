@@ -6,15 +6,16 @@
  */
 
 plugins {
-    // Implicitly applies Java plugin and Distribution plugin 
+    // Implicitly applies Java plugin and Distribution plugin
     id 'application'
     id 'com.google.protobuf' version '0.9.4'
+    id 'checkstyle'
     id 'jacoco' // jacocoTestReport task
     id 'me.champeau.jmh' version '0.7.2' // jmh task
 }
 
 repositories {
-    maven { 
+    maven {
         // The google mirror is less flaky than mavenCentral()
         url 'https://maven-central.storage-download.googleapis.com/maven2/'
     }
@@ -35,6 +36,7 @@ dependencies {
     runtimeOnly "io.grpc:grpc-netty-shaded:${grpcVersion}"
 
     testImplementation 'org.junit.jupiter:junit-jupiter-engine:5.10.2'
+    testImplementation 'com.code-intelligence:jazzer-junit:+'
 }
 
 protobuf {
@@ -103,6 +105,30 @@ test {
             'crypto/CryptoOuterClass$*'
         ]
     }
+
+    // Fuzz testing
+    // https://github.com/CodeIntelligenceTesting/jazzer?tab=readme-ov-file#junit-5
+    // Command line example: JAZZER_FUZZ=1 ./gradlew test --tests <filtered_fuzzing_test> -PSILIENCE_LOG
+
+    // Optionally turn off java.util.logging
+    if (project.hasProperty('SILIENCE_LOG')) {
+        systemProperty 'java.util.logging.config.file', "${sourceSets.test.resources.srcDirs.first()}/silence.logging.properties"
+    }
+}
+
+// --- Checkstyle ---
+
+// https://stackoverflow.com/a/67513272/12141366
+checkstyle {
+    def checkstyleJar = configurations.checkstyle.resolvedConfiguration.getFiles().find {
+        it.name.startsWith("checkstyle")
+    }
+    config = resources.text.fromArchiveEntry(checkstyleJar, "google_checks.xml")
+}
+
+tasks.withType(Checkstyle) {
+    // https://github.com/gradle/gradle/issues/3417#issuecomment-379306780
+    exclude { element -> element.file.path.contains('build/generated') }
 }
 
 // --- Code coverage ---
