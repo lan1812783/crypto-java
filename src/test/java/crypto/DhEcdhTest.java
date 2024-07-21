@@ -12,21 +12,21 @@ import java.util.logging.Logger;
 import javax.crypto.KeyAgreement;
 import org.junit.jupiter.api.Test;
 
-public class DhEcdhTest {
+class DhEcdhTest {
   private static final Logger logger = Logger.getLogger(DhEcdhTest.class.getName());
 
   void dh_ecdh_client_server(CipherSuite cipherSuite, boolean benchmark) {
     // Algorithm choosing and client generates its' key pair
-    DH algoInst = null;
+    DiffieHellman algoInst = null;
     KeyPair clientKeyPair = null;
     switch (cipherSuite) {
       case DH:
-        algoInst = DH.getInstance();
+        algoInst = DiffieHellman.getInstance();
         clientKeyPair = algoInst.generateKeyPair(2048);
         break;
       case ECDH:
-        algoInst = ECDH.getInstance();
-        clientKeyPair = ECDH.getInstance().generateKeyPair("secp256r1");
+        algoInst = EllipticCurveDiffieHellman.getInstance();
+        clientKeyPair = EllipticCurveDiffieHellman.getInstance().generateKeyPair("secp256r1");
         break;
       default:
         assumeFalse(true);

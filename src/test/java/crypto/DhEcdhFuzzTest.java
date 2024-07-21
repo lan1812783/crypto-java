@@ -11,23 +11,23 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.crypto.KeyAgreement;
 
-public class DhEcdhFuzzTest {
+class DhEcdhFuzzTest {
   private static final Logger logger = Logger.getLogger(DhEcdhFuzzTest.class.getName());
 
-  record InitData(DH algoInst, KeyPair clientKeyPair) {}
+  record InitData(DiffieHellman algoInst, KeyPair clientKeyPair) {}
 
-  /** Algorithm choosing and client generates its' key pair */
+  /** Algorithm choosing and client generates its' key pair. */
   InitData dh_ecdh_init(CipherSuite cipherSuite, boolean initClientKeyPair) {
-    DH algoInst = null;
+    DiffieHellman algoInst = null;
     KeyPair clientKeyPair = null;
     switch (cipherSuite) {
       case DH:
-        algoInst = DH.getInstance();
+        algoInst = DiffieHellman.getInstance();
         clientKeyPair = algoInst.generateKeyPair(2048);
         break;
       case ECDH:
-        algoInst = ECDH.getInstance();
-        clientKeyPair = ECDH.getInstance().generateKeyPair("secp256r1");
+        algoInst = EllipticCurveDiffieHellman.getInstance();
+        clientKeyPair = EllipticCurveDiffieHellman.getInstance().generateKeyPair("secp256r1");
         break;
       default:
         assumeFalse(true);
@@ -41,7 +41,7 @@ public class DhEcdhFuzzTest {
   void dh_ecdh_client_receives_public_key_from_server(
       CipherSuite cipherSuite, FuzzedDataProvider data) {
     InitData initData = dh_ecdh_init(cipherSuite, true);
-    DH algoInst = initData.algoInst();
+    DiffieHellman algoInst = initData.algoInst();
     KeyPair clientKeyPair = initData.clientKeyPair();
     // Client creates key agreement based on the generated key pair
     KeyAgreement clientKeyAgreement = algoInst.getKeyAgreement(clientKeyPair);
@@ -70,7 +70,7 @@ public class DhEcdhFuzzTest {
   void dh_ecdh_server_receives_public_key_from_client(
       CipherSuite cipherSuite, FuzzedDataProvider data) {
     InitData initData = dh_ecdh_init(cipherSuite, false);
-    DH algoInst = initData.algoInst();
+    DiffieHellman algoInst = initData.algoInst();
     // Client sends its' public key to server
     byte[] clientPublicKeyBuf = data.consumeRemainingAsBytes();
     // Server receives client's public key

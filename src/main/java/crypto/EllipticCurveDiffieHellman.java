@@ -9,12 +9,15 @@ import java.security.Security;
 import java.security.interfaces.ECPublicKey;
 import java.security.spec.ECGenParameterSpec;
 import java.security.spec.ECParameterSpec;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class ECDH extends DH {
-  private static final Logger logger = Logger.getLogger(ECDH.class.getName());
-  private static final ECDH instance = new ECDH(); // initialized last for its' usage of above static variables
+/** The Elliptic-curve Diffie-Hellman algorithm. */
+public class EllipticCurveDiffieHellman extends DiffieHellman {
+  private static final Logger logger = Logger.getLogger(EllipticCurveDiffieHellman.class.getName());
+  private static final EllipticCurveDiffieHellman instance =
+      new EllipticCurveDiffieHellman(); // initialized last for
+  // its' usage of above
+  // static variables
 
   private String[] supportedCurves;
 
@@ -33,20 +36,20 @@ public class ECDH extends DH {
     return "EC";
   }
 
-  private ECDH() {
+  private EllipticCurveDiffieHellman() {
     super();
     populateSupportedCurves();
   }
 
-  public static ECDH getInstance() {
+  public static EllipticCurveDiffieHellman getInstance() {
     return instance;
   }
 
   private void populateSupportedCurves() {
-    String supportedCurvesAttribute = Security
-        .getProviders("AlgorithmParameters.EC")[0]
-        .getService("AlgorithmParameters", "EC")
-        .getAttribute("SupportedCurves");
+    String supportedCurvesAttribute =
+        Security.getProviders("AlgorithmParameters.EC")[0]
+            .getService("AlgorithmParameters", "EC")
+            .getAttribute("SupportedCurves");
     if (supportedCurvesAttribute == null) {
       supportedCurves = new String[0];
       return;
@@ -56,8 +59,7 @@ public class ECDH extends DH {
     for (int i = 0; i < supportedCurveStrings.length; i++) {
       String supportedCurveString = supportedCurveStrings[i];
       try {
-      supportedCurves[i] = supportedCurveString.substring(1,
-          supportedCurveString.indexOf(","));
+        supportedCurves[i] = supportedCurveString.substring(1, supportedCurveString.indexOf(","));
       } catch (Exception e) {
         handleErrors(e);
       }
@@ -73,15 +75,19 @@ public class ECDH extends DH {
     return false;
   }
 
+  /**
+   * Generates a key pair using a supported curve.
+   *
+   * @param curveName the curve name used to perform the key pair generation
+   */
   public KeyPair generateKeyPair(String curveName) {
     if (!isCurveSupported(curveName)) {
-      handleErrors(new NoSuchAlgorithmException(String.format(
-          "Curve %s is not supported", curveName)));
+      handleErrors(
+          new NoSuchAlgorithmException(String.format("Curve %s is not supported", curveName)));
       return null;
     }
     try {
-      KeyPairGenerator keyPair = KeyPairGenerator.getInstance(
-          keyPairGeneratorAlgorithm);
+      KeyPairGenerator keyPair = KeyPairGenerator.getInstance(keyPairGeneratorAlgorithm);
       ECGenParameterSpec ecGenParameterSpec = new ECGenParameterSpec(curveName);
       keyPair.initialize(ecGenParameterSpec);
       return keyPair.generateKeyPair();
@@ -94,10 +100,8 @@ public class ECDH extends DH {
   @Override
   public KeyPair generateKeyPair(PublicKey peerPublicKey) {
     try {
-      ECParameterSpec peerDhParameterSpec = ((ECPublicKey) peerPublicKey)
-          .getParams();
-      KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance(
-          keyPairGeneratorAlgorithm);
+      ECParameterSpec peerDhParameterSpec = ((ECPublicKey) peerPublicKey).getParams();
+      KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance(keyPairGeneratorAlgorithm);
       keyPairGenerator.initialize(peerDhParameterSpec);
       KeyPair keyPair = keyPairGenerator.generateKeyPair();
       return keyPair;
